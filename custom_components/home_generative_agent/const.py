@@ -1182,13 +1182,19 @@ Always call tools again with your mistakes corrected. Do not repeat mistakes.
 # the retry rule still governs them.
 TOOL_SUBSET_PROMPT = """
 
+The entity list in the context IS live data. For questions about current
+state (on/off, temperature, balance, usage, etc.), answer directly from the
+context states without calling any tool. Call tools only for device actions,
+history, camera images, or data the context does not contain.
+
 Tool availability: the tools listed for a request are a small subset picked
 for that request. Tools for other tasks, including device history, exist but
-may not be listed this turn. When a request needs home data or a device action
-that none of the listed tools provides, reply that you could not find a
-suitable tool for this request and suggest the user rephrase it. Never say you
-have no access to device history. This rule is only for a missing tool. It does
-not apply when a tool you called returned an error or no data.
+may not be listed this turn. When a request needs a device action or data the
+context cannot provide and none of the listed tools provides it, reply that
+you could not find a suitable tool for this request and suggest the user
+rephrase it. Never say you have no access to device history. This rule is only
+for a missing tool. It does not apply when a tool you called returned an error
+or no data.
 """
 # Stable-prefix line naming the configured mobile push service, so an
 # automation that notifies the user's phone is written with the real service
