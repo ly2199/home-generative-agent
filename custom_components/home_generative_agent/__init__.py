@@ -134,6 +134,8 @@ from .const import (
     CONF_OPENAI_COMPATIBLE_EMBEDDING_DIMS,
     CONF_OPENAI_COMPATIBLE_EMBEDDING_MODEL,
     CONF_OPENAI_COMPATIBLE_EMBEDDING_URL,
+    CONF_OPENAI_COMPATIBLE_VLM_URL,
+    CONF_OPENAI_COMPATIBLE_VLM_API_KEY,
     CONF_OPENAI_COMPATIBLE_SENTINEL_MODEL,
     CONF_OPENAI_COMPATIBLE_SUMMARIZATION_MODEL,
     CONF_OPENAI_COMPATIBLE_VLM,
@@ -2772,6 +2774,37 @@ async def async_setup_entry(hass: HomeAssistant, entry: HGAConfigEntry) -> bool:
                 "OpenAI-compatible provider init failed; continuing without it."
             )
 
+    # PATCH(hga-patched): dedicated OpenAI-compatible client for the VLM
+    # category so camera analysis can use a different server than chat.
+    openai_compatible_vlm_provider: (
+        RunnableSerializable[LanguageModelInput, BaseMessage] | None
+    ) = None
+    openai_compatible_vlm_url = conf.get(CONF_OPENAI_COMPATIBLE_VLM_URL)
+    openai_compatible_vlm_key = conf.get(CONF_OPENAI_COMPATIBLE_VLM_API_KEY)
+    if openai_compatible_vlm_url:
+        try:
+            openai_compatible_vlm_provider = ChatOpenAI(
+                api_key=SecretStr(openai_compatible_vlm_key or "none"),
+                base_url=normalize_openai_compatible_base_url(
+                    openai_compatible_vlm_url
+                ),
+                timeout=120,
+                http_client=openai_http_client,
+                http_async_client=http_async_client,
+                use_responses_api=False,
+            ).configurable_fields(
+                model_name=ConfigurableField(id="model_name"),
+                temperature=ConfigurableField(id="temperature"),
+                top_p=ConfigurableField(id="top_p"),
+                max_tokens=ConfigurableField(id="max_tokens"),
+                reasoning_effort=ConfigurableField(id="reasoning_effort"),
+                extra_body=ConfigurableField(id="extra_body"),
+            )
+        except Exception:
+            LOGGER.exception(
+                "OpenAI-compatible VLM provider init failed; falling back to the shared client."
+            )
+
     # Embeddings: instantiate both, then select based on provider
     openai_embeddings: OpenAIEmbeddings | None = None
     if openai_ok:
@@ -3448,7 +3481,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HGAConfigEntry) -> bool:
             }
         )
     elif vlm_provider == "openai_compatible":
-        vision_model = (openai_compatible_provider or NullChat()).with_config(
+        vision_model = (openai_compatible_vlm_provider or openai_compatible_provider or NullChat()).with_config(
             config={
                 "configurable": {
                     "model_name": options.get(
