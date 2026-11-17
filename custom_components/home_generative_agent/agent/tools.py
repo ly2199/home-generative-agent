@@ -514,7 +514,7 @@ async def _get_camera_image(hass: HomeAssistant, camera_entity_id: str) -> bytes
 # Returned by analyze_image when the VLM call fails with HomeAssistantError.
 # Callers that chain frame context (video_analyzer._process_batch) must never
 # treat this caption as a real scene description.
-VLM_ERROR_CAPTION = "Error analyzing image with VLM model."
+VLM_ERROR_CAPTION = "摄像头画面分析暂时失败，请稍后再试。"
 
 
 def _prompt_func(data: dict[str, Any]) -> list[AnyMessage]:
@@ -659,7 +659,7 @@ async def get_and_analyze_camera_image(  # noqa: D417
 
     """
     if "configurable" not in config:
-        return "Configuration not found. Please check your setup."
+        return "配置缺失，请检查集成设置。"
 
     hass = config["configurable"]["hass"]
     vlm_model = config["configurable"]["vlm_model"]
@@ -672,12 +672,12 @@ async def get_and_analyze_camera_image(  # noqa: D417
         available = _available_camera_names(hass)
         if available:
             return (
-                f"Camera '{camera_name}' was not found. Available cameras: {available}."
+                f"找不到摄像头'{camera_name}'。可用摄像头：{available}。"
             )
-        return f"Camera '{camera_name}' was not found. No cameras are available."
+        return f"找不到摄像头'{camera_name}'，当前没有可用摄像头。"
     image = await _get_camera_image(hass, camera_entity_id)
     if image is None:
-        return "Error getting image from camera."
+        return "获取摄像头画面失败。"
     try:
         overrides = VLMPromptOverrides(
             response_language=options.get(
@@ -728,7 +728,7 @@ async def upsert_memory(  # noqa: D417
 
     """
     if "configurable" not in config:
-        return "Configuration not found. Please check your setup."
+        return "配置缺失，请检查集成设置。"
 
     mem_id = memory_id or ulid.ulid_now()
 
@@ -778,7 +778,7 @@ async def add_automation(  # noqa: D417
 
     """
     if "configurable" not in config:
-        return "Configuration not found. Please check your setup."
+        return "配置缺失，请检查集成设置。"
 
     hass = config["configurable"]["hass"]
     raw_push_service = config["configurable"]["options"].get(CONF_NOTIFY_SERVICE)
@@ -1031,7 +1031,7 @@ async def write_yaml_file(  # noqa: D417
 
     """
     if "configurable" not in config:
-        return "Configuration not found. Please check your setup."
+        return "配置缺失，请检查集成设置。"
 
     hass = config["configurable"]["hass"]
     config_dir = Path(hass.config.config_dir)
@@ -1089,7 +1089,7 @@ async def confirm_sensitive_action(  # noqa: D417
 
     """
     if "configurable" not in config:
-        return "Configuration not found. Please check your setup."
+        return "配置缺失，请检查集成设置。"
 
     # The action must finish inside the graph's own tool timeout, counted from
     # here, so a slow device gets the "may have run" reply rather than a
@@ -1603,7 +1603,7 @@ async def alarm_control(  # noqa: D417, PLR0913
 
     """
     if "configurable" not in config:
-        return "Configuration not found. Please check your setup."
+        return "配置缺失，请检查集成设置。"
 
     hass: HomeAssistant = config["configurable"]["hass"]
     tool_args: dict[str, Any] = {
@@ -1907,6 +1907,20 @@ _DOMAIN_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
 _ENTITY_ID_PATTERN = re.compile(r"^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$")
 
 
+def _friendly_name_matches(friendly: str, target: str) -> bool:
+    """PATCH(hga-patched): match plain or device-prefixed friendly names.
+
+    The Assist LLM context shows "Device Name Entity Name" for entities with
+    has_entity_name, while the state's friendly_name may hold only the entity
+    part (or the reverse). Accept both directions so history lookups resolve
+    the names the model actually sees.
+    """
+    fn = friendly.strip().lower()
+    if not fn:
+        return False
+    return fn == target or target.endswith(" " + fn) or fn.endswith(" " + target)
+
+
 async def _get_existing_entity_id(
     name: str | None, hass: HomeAssistant, domain: str | None = "sensor"
 ) -> str:
@@ -1923,10 +1937,10 @@ async def _get_existing_entity_id(
     Raises ValueError if not found, ambiguous, or invalid domain/entity_id.
     """
     if not isinstance(name, str) or not name.strip():
-        msg = "Name must be a non-empty string"
+        msg = "名称不能为空"
         raise ValueError(msg)
     if not isinstance(domain, str) or not _DOMAIN_PATTERN.match(domain):
-        msg = "Domain invalid; must be a valid Home Assistant domain"
+        msg = "domain 无效"
         raise ValueError(msg)
 
     target = name.strip().lower()
@@ -1946,21 +1960,21 @@ async def _get_existing_entity_id(
         fn = state.attributes.get(ATTR_FRIENDLY_NAME, "")
         if (
             isinstance(fn, str)
-            and fn.strip().lower() == target
+            and _friendly_name_matches(fn, target)
             and can_check_exposure
             and exposed_to_assist(hass, eid)
         ):
             candidates.append(eid)
 
     if not candidates:
-        msg = f"No '{domain}' entity found with friendly name '{name}'"
+        msg = f"找不到名为'{name}'的{domain}实体"
         raise ValueError(msg)
     if len(candidates) > 1:
         # Prefer the canonical entity (no _N suffix) over duplicates from re-adds.
         canonical = [e for e in candidates if not re.search(r"_\d+$", e)]
         if len(canonical) == 1:
             return canonical[0]
-        msg = f"Multiple '{domain}' entities found for '{name}': {candidates}"
+        msg = f"名为'{name}'的{domain}实体有多个：{candidates}，请说得更具体"
         raise ValueError(msg)
 
     eid = candidates[0]
@@ -2017,7 +2031,7 @@ async def get_entity_history(  # noqa: D417
 
     """
     if "configurable" not in config:
-        LOGGER.warning("Configuration not found. Please check your setup.")
+        LOGGER.warning("配置缺失，请检查集成设置。")
         return {}
 
     hass: HomeAssistant = config["configurable"]["hass"]
@@ -2129,7 +2143,7 @@ async def get_current_device_state(  # noqa: D417
         return {"instructions": instructions, "devices": devices}
 
     if "configurable" not in config:
-        LOGGER.warning("Configuration not found. Please check your setup.")
+        LOGGER.warning("配置缺失，请检查集成设置。")
         return {}
     llm_api = config["configurable"]["ha_llm_api"]
     try:
@@ -2170,7 +2184,7 @@ async def get_camera_last_events(  # noqa: D417
 
     """
     if "configurable" not in config:
-        return "Configuration not found. Please check your setup."
+        return "配置缺失，请检查集成设置。"
 
     hass = config["configurable"]["hass"]
     results = get_camera_last_events_from_states(hass, camera_entity_id)
