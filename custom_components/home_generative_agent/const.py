@@ -998,6 +998,9 @@ CONF_OPENAI_COMPATIBLE_API_KEY = "openai_compatible_api_key"
 # from chat (e.g. a dedicated llama.cpp embedding instance).
 CONF_OPENAI_COMPATIBLE_EMBEDDING_URL = "openai_compatible_embedding_url"
 CONF_OPENAI_COMPATIBLE_EMBEDDING_API_KEY = "openai_compatible_embedding_api_key"
+# PATCH(hga-patched): dedicated VLM endpoint keys
+CONF_OPENAI_COMPATIBLE_VLM_URL = "openai_compatible_vlm_url"
+CONF_OPENAI_COMPATIBLE_VLM_API_KEY = "openai_compatible_vlm_api_key"
 
 # ---------------- Camera video analyzer ----------------
 CONF_VIDEO_ANALYZER_MODE = "video_analyzer_mode"
