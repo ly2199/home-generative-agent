@@ -65,6 +65,8 @@ from ..const import (  # noqa: TID252
     CONF_OPENAI_COMPATIBLE_EMBEDDING_API_KEY,
     CONF_OPENAI_COMPATIBLE_EMBEDDING_DIMS,
     CONF_OPENAI_COMPATIBLE_EMBEDDING_URL,
+    CONF_OPENAI_COMPATIBLE_VLM_URL,
+    CONF_OPENAI_COMPATIBLE_VLM_API_KEY,
     CONF_OPENAI_EMBEDDING_MODEL,
     CONF_OPENAI_SUMMARIZATION_MODEL,
     CONF_OPENAI_VLM,
@@ -957,6 +959,12 @@ def _apply_openai_compatible_to_category(
         )
         if (dims := settings.get(CONF_OPENAI_COMPATIBLE_EMBEDDING_DIMS)) is not None:
             options[CONF_OPENAI_COMPATIBLE_EMBEDDING_DIMS] = dims
+    elif category == "vlm":
+        # PATCH(hga-patched): dedicated VLM endpoint — vision may use a
+        # different OpenAI-compatible server than chat/summarization.
+        if base_url := settings.get("base_url"):
+            options[CONF_OPENAI_COMPATIBLE_VLM_URL] = base_url
+        options[CONF_OPENAI_COMPATIBLE_VLM_API_KEY] = settings.get("api_key", "none")
     else:
         if base_url := settings.get("base_url"):
             options[CONF_OPENAI_COMPATIBLE_BASE_URL] = base_url
