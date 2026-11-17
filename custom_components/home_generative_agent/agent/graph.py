@@ -1417,7 +1417,7 @@ def _retrieval_query(messages: Sequence[BaseMessage]) -> str:
     return current
 
 
-_MAX_ACTION_ROUNDS = 3
+_MAX_ACTION_ROUNDS = 5  # PATCH(hga-patched): 3 -> 5, allow recovery from failed tool calls
 
 # Extra rounds granted for correcting a refused automation. A refusal is not
 # an action: the tool ran nothing and handed back the names to fix, so the
@@ -4593,8 +4593,7 @@ def _pin_line_is_the_reply(config: RunnableConfig) -> bool:
 # thing this turn must not do, and the next model call sees this text right
 # before the user's next message.
 _ROUND_LIMIT_RESULT = (
-    "Not run: this turn's tool-round limit was reached. Do not call it again "
-    "unless the user asks."
+    "未执行：本轮工具调用次数已达上限。除非用户再次要求，不要重复调用。"
 )
 
 
@@ -4638,15 +4637,13 @@ async def _tool_loop_guard(state: State, config: RunnableConfig) -> dict[str, An
     if _pin_line_is_the_reply(config):
         return {"messages": answers}
     content = (
-        "I wasn't able to complete this request after several tool-use "
-        "attempts. Please try rephrasing your query or breaking it into "
-        "smaller steps."
+        "抱歉，尝试了几次还是没能完成这个请求。请换个说法，或把问题拆小一点再试。"
     )
     last_tool = next(
         (m for m in reversed(messages) if isinstance(m, ToolMessage)), None
     )
     if last_tool is not None and _is_automation_refusal(last_tool):
-        content += f"\n\nThe last problem was:\n{last_tool.content}"
+        content += f"\n\n最后的问题是：\n{last_tool.content}"
     return {"messages": [*answers, AIMessage(content=content)]}
 
 
